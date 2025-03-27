@@ -841,3 +841,85 @@ When deploying your chatbot, ensure that database credentials are securely manag
 Thoroughly test the chatbot to ensure it correctly interacts with the MySQL database, accurately retrieving and updating information as intended.​
 
 By following these steps, you can effectively integrate your HR chatbot with your MySQL data warehouse, enabling seamless and dynamic interactions with your HR data.
+
+
+-----------------------------------------------
+
+import fitz  # PyMuPDF for PDF reading
+import spacy
+import re
+from collections import defaultdict
+
+# Load spaCy NLP model
+nlp = spacy.load("en_core_web_sm")
+
+def extract_text_from_pdf(pdf_path):
+    """Extract text from a PDF file."""
+    doc = fitz.open(pdf_path)
+    text = "\n".join([page.get_text("text") for page in doc])
+    return text
+
+def extract_name(text):
+    """Extract the name from the resume using NLP."""
+    doc = nlp(text)
+    for ent in doc.ents:
+        if ent.label_ == "PERSON":
+            return ent.text
+    return "Not Found"
+
+def extract_email(text):
+    """Extract email from the text."""
+    email = re.search(r"[\w.+-]+@[\w-]+\.[a-zA-Z]+", text)
+    return email.group(0) if email else "Not Found"
+
+def extract_phone(text):
+    """Extract phone number from the text."""
+    phone = re.search(r"\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}", text)
+    return phone.group(0) if phone else "Not Found"
+
+def extract_skills(text):
+    """Extract skills based on a predefined skill set."""
+    predefined_skills = {"Python", "SQL", "Machine Learning", "Data Science", "Java", "Linux", "ETL", "Big Data", "Spark", "Kafka", "Power BI"}
+    words = set(text.split())
+    extracted_skills = predefined_skills.intersection(words)
+    return list(extracted_skills)
+
+def extract_experience(text):
+    """Extract experience details based on patterns."""
+    experience = re.findall(r"(\d+\s*(?:years?|months?)\s*experience)", text, re.IGNORECASE)
+    return experience if experience else "Not Found"
+
+def extract_education(text):
+    """Extract education qualifications using keyword matching."""
+    education_keywords = ["Bachelor", "Master", "PhD", "B.Tech", "M.Tech", "B.Sc", "M.Sc", "MBA", "BE", "ME"]
+    matches = [line for line in text.split("\n") if any(edu in line for edu in education_keywords)]
+    return matches if matches else "Not Found"
+
+def extract_address(text):
+    """Extract address from the resume."""
+    address_keywords = ["Street", "Road", "Avenue", "Lane", "City", "State", "Zip", "Country"]
+    for line in text.split("\n"):
+        if any(keyword in line for keyword in address_keywords):
+            return line
+    return "Not Found"
+
+def parse_resume(pdf_path):
+    """Parse essential information from a resume PDF."""
+    text = extract_text_from_pdf(pdf_path)
+    return {
+        "Name": extract_name(text),
+        "Email": extract_email(text),
+        "Phone": extract_phone(text),
+        "Skills": extract_skills(text),
+        "Experience": extract_experience(text),
+        "Education": extract_education(text),
+        "Address": extract_address(text)
+    }
+
+# Example Usage
+pdf_path = "sample_resume.pdf"
+resume_data = parse_resume(pdf_path)
+print(resume_data)
+
+
+-----------------------------------------------
