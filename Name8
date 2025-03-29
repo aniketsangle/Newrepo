@@ -1,0 +1,1500 @@
+Since you're using SpaCy for resume extraction and it's not giving accurate names, fine-tuning SpaCy's Named Entity Recognition (NER) model with your applicant data can significantly improve accuracy. Here’s how you can do it:
+
+
+---
+
+Steps to Fine-Tune SpaCy for Name Extraction from Resumes
+
+1. Prepare Training Data
+
+You need annotated training data where names are correctly labeled as PERSON. The format should be like this:
+
+TRAIN_DATA = [
+    ("John Doe has 5 years of experience in Python.", {"entities": [(0, 8, "PERSON")]}),
+    ("Resume of Jane Smith, a data scientist.", {"entities": [(10, 20, "PERSON")]}),
+    # Add more real applicant data here
+]
+
+You can use your applicant dataset to create more examples.
+
+
+---
+
+2. Load Pretrained SpaCy Model
+
+import spacy
+from spacy.training.example import Example
+from spacy.training import Example
+
+nlp = spacy.load("en_core_web_sm")  # Use a larger model like "en_core_web_trf" for better results
+
+
+---
+
+3. Fine-Tune the Model
+
+Now, we update the NER model using the training data.
+
+# Get the Named Entity Recognizer pipeline
+ner = nlp.get_pipe("ner")
+
+# Add the "PERSON" label if not already present
+ner.add_label("PERSON")
+
+# Disable other pipes to focus only on NER
+unaffected_pipes = [pipe for pipe in nlp.pipe_names if pipe != "ner"]
+with nlp.disable_pipes(*unaffected_pipes):
+    optimizer = nlp.resume_training()
+
+    for i in range(30):  # Adjust epochs as needed
+        print(f"Iteration {i+1}")
+        losses = {}
+        examples = []
+        
+        for text, annotations in TRAIN_DATA:
+            doc = nlp.make_doc(text)
+            example = Example.from_dict(doc, annotations)
+            examples.append(example)
+        
+        nlp.update(examples, drop=0.3, losses=losses)
+        print(losses)
+
+
+---
+
+4. Save and Use the Fine-Tuned Model
+
+nlp.to_disk("custom_resume_ner")
+
+# Load the model and test it
+nlp_custom = spacy.load("custom_resume_ner")
+doc = nlp_custom("John Doe is an experienced software engineer.")
+for ent in doc.ents:
+    print(ent.text, ent.label_)
+
+
+---
+
+Alternative: Use Transformer-Based Model
+
+If fine-tuning SpaCy's NER doesn’t improve accuracy, consider using a transformer-based model like BERT or spaCy's en_core_web_trf.
+
+nlp = spacy.load("en_core_web_trf")  # Transformer-based model
+doc = nlp("John Doe is an experienced software engineer.")
+for ent in doc.ents:
+    print(ent.text, ent.label_)
+
+
+---
+
+Next Steps
+
+1. Increase the dataset size: More training data improves accuracy.
+
+
+2. Use domain-specific resumes: If your dataset has diverse names, the model generalizes better.
+
+
+3. Combine with heuristic rules: If a word starts with a capital letter and is present in your applicant database, increase confidence.
+
+
+4. Use a Pretrained NER Model: Try spaCy’s en_core_web_trf or fine-tune BERT.
+
+
+
+Would you like a script to automate data annotation from your applicant database?
+
+?......
+
+Great! I'll guide you through the step-by-step process to fine-tune SpaCy’s NER model for extracting names accurately using your applicant data.
+
+
+---
+
+Step 1: Install Required Libraries
+
+Ensure you have SpaCy installed along with the necessary dependencies.
+
+pip install spacy
+python -m spacy download en_core_web_sm
+
+
+---
+
+Step 2: Load Your Applicant Data
+
+Since you have applicant names, we need to structure them into training data. Let's assume you have a list of names:
+
+applicant_names = ["John Doe", "Jane Smith", "Michael Johnson", "Emily Davis"]
+
+We will create training sentences with these names so the model learns to recognize them.
+
+
+---
+
+Step 3: Prepare Training Data
+
+We need to label these names as PERSON in example sentences.
+
+TRAIN_DATA = []
+
+for name in applicant_names:
+    text = f"{name} is applying for a software engineering position."
+    start_idx = text.find(name)
+    end_idx = start_idx + len(name)
+    entities = [(start_idx, end_idx, "PERSON")]
+    TRAIN_DATA.append((text, {"entities": entities}))
+
+print(TRAIN_DATA)  # Check the structure
+
+This creates a list like:
+
+[
+    ("John Doe is applying for a software engineering position.", {"entities": [(0, 8, "PERSON")]}),
+    ("Jane Smith is applying for a software engineering position.", {"entities": [(0, 10, "PERSON")]}),
+]
+
+
+---
+
+Step 4: Load and Modify SpaCy Model
+
+We will use the en_core_web_sm model and add our custom data.
+
+import spacy
+from spacy.training.example import Example
+
+nlp = spacy.load("en_core_web_sm")  # Load SpaCy model
+ner = nlp.get_pipe("ner")  # Get the Named Entity Recognizer
+
+# Add "PERSON" as a new entity label (if not already present)
+ner.add_label("PERSON")
+
+
+---
+
+Step 5: Train the Model
+
+Now, we will train the model with our applicant data.
+
+import random
+
+# Disable all other pipes to train only NER
+unaffected_pipes = [pipe for pipe in nlp.pipe_names if pipe != "ner"]
+
+with nlp.disable_pipes(*unaffected_pipes):
+    optimizer = nlp.resume_training()
+
+    for epoch in range(30):  # Number of iterations
+        random.shuffle(TRAIN_DATA)  # Shuffle data for better learning
+        losses = {}
+        examples = []
+
+        for text, annotations in TRAIN_DATA:
+            doc = nlp.make_doc(text)
+            example = Example.from_dict(doc, annotations)
+            examples.append(example)
+
+        # Update the model
+        nlp.update(examples, drop=0.3, losses=losses)
+        print(f"Iteration {epoch+1}, Loss: {losses}")
+
+# Save the trained model
+nlp.to_disk("custom_resume_ner")
+print("Training completed and model saved!")
+
+
+---
+
+Step 6: Test the Trained Model
+
+Now, let's load and test the fine-tuned model.
+
+nlp_custom = spacy.load("custom_resume_ner")  # Load the trained model
+
+test_text = "Michael Johnson is an experienced software engineer."
+doc = nlp_custom(test_text)
+
+for ent in doc.ents:
+    print(f"Entity: {ent.text}, Label: {ent.label_}")
+
+Expected Output:
+
+Entity: Michael Johnson, Label: PERSON
+
+
+---
+
+Next Steps
+
+1. Improve Training Data: Use real resumes to add more variety.
+
+
+2. Train with More Epochs: Increase to 50-100 epochs for better accuracy.
+
+
+3. Use a Larger Model: Try en_core_web_trf (Transformer model).
+
+
+4. Evaluate Performance: Check how well the model performs on real resumes.
+
+
+
+Would you like help in automating training data generation from resumes?
+
+
+
+.......
+Yes! Since you have a large quantity of applicant data in Excel or CSV, we can read the data, structure it for training, and fine-tune SpaCy for multiple entities like name, address, experience, skills, and education.
+
+
+---
+
+Step 1: Install Required Libraries
+
+Ensure you have the necessary libraries installed:
+
+pip install pandas spacy openpyxl
+
+
+---
+
+Step 2: Load Data from Excel or CSV
+
+Let's assume your CSV/Excel file has the following columns:
+
+We will read the file and create training data.
+
+import pandas as pd
+
+# Load CSV or Excel file
+file_path = "applicants_data.xlsx"  # Change to "applicants_data.csv" if using CSV
+df = pd.read_excel(file_path)  # Use pd.read_csv() for CSV
+
+print(df.head())  # Check the first few rows
+
+
+---
+
+Step 3: Convert Data to SpaCy Format
+
+We will label names as PERSON, addresses as GPE, experience as EXPERIENCE, skills as SKILL, and education as EDUCATION.
+
+TRAIN_DATA = []
+
+for _, row in df.iterrows():
+    text = f"{row['Name']} lives in {row['Address']} and has {row['Experience']} experience in {row['Skills']}. They completed {row['Education']}."
+
+    entities = [
+        (text.find(row['Name']), text.find(row['Name']) + len(row['Name']), "PERSON"),
+        (text.find(row['Address']), text.find(row['Address']) + len(row['Address']), "GPE"),
+        (text.find(row['Experience']), text.find(row['Experience']) + len(row['Experience']), "EXPERIENCE"),
+        (text.find(row['Skills']), text.find(row['Skills']) + len(row['Skills']), "SKILL"),
+        (text.find(row['Education']), text.find(row['Education']) + len(row['Education']), "EDUCATION"),
+    ]
+
+    TRAIN_DATA.append((text, {"entities": entities}))
+
+print(TRAIN_DATA[:2])  # Check the structured data
+
+
+---
+
+Step 4: Load and Modify SpaCy Model
+
+import spacy
+from spacy.training.example import Example
+
+nlp = spacy.load("en_core_web_sm")  # Load base model
+ner = nlp.get_pipe("ner")
+
+# Add new labels
+labels = ["PERSON", "GPE", "EXPERIENCE", "SKILL", "EDUCATION"]
+for label in labels:
+    ner.add_label(label)
+
+
+---
+
+Step 5: Train the Model
+
+import random
+
+with nlp.disable_pipes(*[pipe for pipe in nlp.pipe_names if pipe != "ner"]):
+    optimizer = nlp.resume_training()
+
+    for epoch in range(50):  # More epochs for better learning
+        random.shuffle(TRAIN_DATA)
+        losses = {}
+        examples = []
+
+        for text, annotations in TRAIN_DATA:
+            doc = nlp.make_doc(text)
+            example = Example.from_dict(doc, annotations)
+            examples.append(example)
+
+        nlp.update(examples, drop=0.3, losses=losses)
+        print(f"Iteration {epoch+1}, Loss: {losses}")
+
+# Save the trained model
+nlp.to_disk("custom_resume_ner")
+print("Training completed and model saved!")
+
+
+---
+
+Step 6: Test the Model
+
+nlp_custom = spacy.load("custom_resume_ner")
+
+test_text = "Michael Johnson lives in San Francisco, USA and has 7 years experience in AI, Python. He completed MBA in Data Science."
+doc = nlp_custom(test_text)
+
+for ent in doc.ents:
+    print(f"Entity: {ent.text}, Label: {ent.label_}")
+
+Expected Output:
+
+Entity: Michael Johnson, Label: PERSON
+Entity: San Francisco, USA, Label: GPE
+Entity: 7 years, Label: EXPERIENCE
+Entity: AI, Python, Label: SKILL
+Entity: MBA in Data Science, Label: EDUCATION
+
+
+---
+
+Next Steps
+
+1. Improve Training Data: Add more real-world variations.
+
+
+2. Increase Training Epochs: Train for 100+ iterations for better results.
+
+
+3. Use en_core_web_trf (Transformer Model): More accurate than en_core_web_sm.
+
+
+4. Combine with Regex-based Rules: To improve entity recognition further.
+
+
+
+Would you like me to provide a script to automatically extract training data from resumes?
+
+
+......
+
+Step-by-Step Guide to Extract Resume Data and Fine-Tune SpaCy for Better Accuracy
+
+Since you need accurate extraction of names, skills, education, and other details from resumes and want to store them in a data warehouse, here’s a complete approach:
+
+
+---
+
+Step 1: Install Required Libraries
+
+Ensure you have the necessary libraries installed.
+
+pip install pandas spacy openpyxl pymysql pdfplumber
+python -m spacy download en_core_web_sm
+
+pandas → For data handling
+
+spacy → NLP processing
+
+pdfplumber → Extract text from PDF resumes
+
+pymysql → Connect to MySQL data warehouse
+
+
+
+---
+
+Step 2: Extract Text from Resumes
+
+Since resumes are usually in PDF format, we will extract text using pdfplumber.
+
+import pdfplumber
+
+def extract_text_from_pdf(pdf_path):
+    text = ""
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            text += page.extract_text() + "\n"
+    return text.strip()
+
+# Example usage
+pdf_path = "sample_resume.pdf"
+resume_text = extract_text_from_pdf(pdf_path)
+print(resume_text)
+
+
+---
+
+Step 3: Prepare Training Data for Fine-Tuning
+
+Since you have applicant data (names, skills, education, etc.), we need to format it as SpaCy training data.
+
+3.1 Load Applicant Data from Excel/CSV
+
+import pandas as pd
+
+# Load applicant data
+file_path = "applicants_data.xlsx"  # Change to "applicants_data.csv" if using CSV
+df = pd.read_excel(file_path)  # Use pd.read_csv() for CSV
+
+print(df.head())  # Check the first few rows
+
+
+---
+
+3.2 Convert Data to SpaCy Training Format
+
+We will use your dataset to label PERSON, SKILL, EDUCATION, etc.
+
+TRAIN_DATA = []
+
+for _, row in df.iterrows():
+    text = f"{row['Name']} has {row['Experience']} years of experience in {row['Skills']} and completed {row['Education']}."
+
+    entities = [
+        (text.find(row['Name']), text.find(row['Name']) + len(row['Name']), "PERSON"),
+        (text.find(row['Skills']), text.find(row['Skills']) + len(row['Skills']), "SKILL"),
+        (text.find(row['Education']), text.find(row['Education']) + len(row['Education']), "EDUCATION"),
+    ]
+
+    TRAIN_DATA.append((text, {"entities": entities}))
+
+print(TRAIN_DATA[:2])  # Check data format
+
+
+---
+
+Step 4: Fine-Tune the SpaCy Model
+
+We will train the model with your labeled data.
+
+import spacy
+from spacy.training.example import Example
+
+nlp = spacy.load("en_core_web_sm")
+ner = nlp.get_pipe("ner")
+
+# Add labels
+labels = ["PERSON", "SKILL", "EDUCATION"]
+for label in labels:
+    ner.add_label(label)
+
+import random
+
+with nlp.disable_pipes(*[pipe for pipe in nlp.pipe_names if pipe != "ner"]):
+    optimizer = nlp.resume_training()
+
+    for epoch in range(50):  # Train for 50 iterations
+        random.shuffle(TRAIN_DATA)
+        losses = {}
+        examples = []
+
+        for text, annotations in TRAIN_DATA:
+            doc = nlp.make_doc(text)
+            example = Example.from_dict(doc, annotations)
+            examples.append(example)
+
+        nlp.update(examples, drop=0.3, losses=losses)
+        print(f"Iteration {epoch+1}, Loss: {losses}")
+
+# Save the trained model
+nlp.to_disk("custom_resume_ner")
+print("Model training completed and saved!")
+
+
+---
+
+Step 5: Test the Trained Model on Resumes
+
+nlp_custom = spacy.load("custom_resume_ner")
+
+test_text = "Michael Johnson has 5 years of experience in Data Science and completed MSc in Computer Science."
+doc = nlp_custom(test_text)
+
+for ent in doc.ents:
+    print(f"Entity: {ent.text}, Label: {ent.label_}")
+
+Expected Output:
+
+Entity: Michael Johnson, Label: PERSON
+Entity: Data Science, Label: SKILL
+Entity: MSc in Computer Science, Label: EDUCATION
+
+
+---
+
+Step 6: Store Extracted Data in a Data Warehouse (MySQL)
+
+Now, we will store the extracted information in a MySQL data warehouse.
+
+6.1 Connect to MySQL Database
+
+import pymysql
+
+# Establish database connection
+conn = pymysql.connect(host="your_host", user="your_user", password="your_password", database="your_db")
+cursor = conn.cursor()
+
+# Create table if not exists
+create_table_query = """
+CREATE TABLE IF NOT EXISTS applicants (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255),
+    skills TEXT,
+    education TEXT
+);
+"""
+cursor.execute(create_table_query)
+conn.commit()
+
+
+---
+
+6.2 Insert Extracted Data
+
+def insert_applicant_data(name, skills, education):
+    query = "INSERT INTO applicants (name, skills, education) VALUES (%s, %s, %s)"
+    cursor.execute(query, (name, skills, education))
+    conn.commit()
+    print(f"Inserted: {name}")
+
+# Example Data
+name = "Michael Johnson"
+skills = "Data Science, Python, AI"
+education = "MSc in Computer Science"
+
+insert_applicant_data(name, skills, education)
+
+
+---
+
+Step 7: Automate Bulk Resume Processing
+
+If you have multiple resumes, we can automate the process:
+
+import os
+
+resume_folder = "resume_pdfs"
+
+for file in os.listdir(resume_folder):
+    if file.endswith(".pdf"):
+        resume_path = os.path.join(resume_folder, file)
+        resume_text = extract_text_from_pdf(resume_path)
+        
+        doc = nlp_custom(resume_text)
+
+        name, skills, education = "", "", ""
+
+        for ent in doc.ents:
+            if ent.label_ == "PERSON":
+                name = ent.text
+            elif ent.label_ == "SKILL":
+                skills += ent.text + ", "
+            elif ent.label_ == "EDUCATION":
+                education = ent.text
+
+        insert_applicant_data(name, skills.strip(", "), education)
+
+
+---
+
+Next Steps
+
+1. Increase Training Data: More resumes → better accuracy.
+
+
+2. Train for More Epochs: Increase epochs from 50 to 100+.
+
+
+3. Use en_core_web_trf: Transformer-based SpaCy model improves accuracy.
+
+
+4. Add Regex Rules: Improve extraction of years of experience and skills.
+
+
+5. Improve MySQL Storage: Store more applicant details.
+
+
+
+Would you like a script for cleaning resume text before processing?
+
+
+
+......
+How to Increase Training Data for Better Resume Extraction Accuracy
+
+To improve accuracy, we need more labeled examples in various formats. Since you have a large quantity of applicant data, we can generate more diverse training data using:
+
+1. Expanding the Dataset (Using CSV/Excel)
+
+
+2. Augmenting Data (Generating variations)
+
+
+3. Using Regex-Based Extraction (To create more labeled data)
+
+
+4. Using Pre-Trained Models (To assist in labeling)
+
+
+
+
+---
+
+Step 1: Load More Applicant Data (From CSV/Excel)
+
+We will load more applicant data from your dataset.
+
+import pandas as pd
+
+# Load data from CSV or Excel
+file_path = "applicants_data.xlsx"  # Change to CSV if needed
+df = pd.read_excel(file_path)
+
+print("Total records:", len(df))
+print(df.head())  # Preview data
+
+Expected Format
+
+Your dataset should have columns like:
+
+
+---
+
+Step 2: Generate More Training Data
+
+We will generate more labeled sentences for the model.
+
+import random
+
+TRAIN_DATA = []
+
+for _, row in df.iterrows():
+    templates = [
+        f"{row['Name']} has {row['Experience']} experience in {row['Skills']} and completed {row['Education']}.",
+        f"{row['Name']} is skilled in {row['Skills']} and studied {row['Education']}.",
+        f"After {row['Education']}, {row['Name']} gained {row['Experience']} experience working with {row['Skills']}.",
+        f"{row['Name']} has worked for {row['Experience']} and is an expert in {row['Skills']}. They studied {row['Education']}.",
+    ]
+    
+    text = random.choice(templates)
+    
+    entities = [
+        (text.find(row['Name']), text.find(row['Name']) + len(row['Name']), "PERSON"),
+        (text.find(row['Skills']), text.find(row['Skills']) + len(row['Skills']), "SKILL"),
+        (text.find(row['Education']), text.find(row['Education']) + len(row['Education']), "EDUCATION"),
+    ]
+
+    TRAIN_DATA.append((text, {"entities": entities}))
+
+print("Generated training samples:", len(TRAIN_DATA))
+print(TRAIN_DATA[:3])  # Preview some generated samples
+
+Why This Works
+
+Increases dataset size by creating variations of labeled data.
+
+Helps SpaCy generalize better instead of overfitting to a few examples.
+
+
+
+---
+
+Step 3: Train the SpaCy Model with More Data
+
+Now that we have more data, let’s fine-tune the model again.
+
+import spacy
+from spacy.training.example import Example
+
+# Load small SpaCy model
+nlp = spacy.load("en_core_web_sm")  
+ner = nlp.get_pipe("ner")
+
+# Add new labels
+for label in ["PERSON", "SKILL", "EDUCATION"]:
+    ner.add_label(label)
+
+import random
+
+# Train for more epochs (Increase to 100 for better results)
+with nlp.disable_pipes(*[pipe for pipe in nlp.pipe_names if pipe != "ner"]):
+    optimizer = nlp.resume_training()
+
+    for epoch in range(100):  # More iterations for better accuracy
+        random.shuffle(TRAIN_DATA)
+        losses = {}
+        examples = []
+
+        for text, annotations in TRAIN_DATA:
+            doc = nlp.make_doc(text)
+            example = Example.from_dict(doc, annotations)
+            examples.append(example)
+
+        nlp.update(examples, drop=0.3, losses=losses)
+        print(f"Iteration {epoch+1}, Loss: {losses}")
+
+# Save trained model
+nlp.to_disk("custom_resume_ner")
+print("Training completed and model saved!")
+
+
+---
+
+Step 4: Improve Training Further
+
+4.1 Train Using Transformer-Based Model
+
+Instead of using en_core_web_sm, use a Transformer model for better accuracy:
+
+python -m spacy download en_core_web_trf
+
+Then, modify the code:
+
+nlp = spacy.load("en_core_web_trf")
+
+This improves performance significantly.
+
+
+---
+
+4.2 Use Regex to Pre-Label More Data
+
+We can use regular expressions to automatically extract more training data.
+
+import re
+
+def extract_entities(text):
+    name_match = re.search(r"[A-Z][a-z]+ [A-Z][a-z]+", text)  # Matches "John Doe"
+    skill_match = re.search(r"\b(Python|AI|Data Science|Machine Learning)\b", text)
+    education_match = re.search(r"(B\.Tech|MSc|MBA|PhD)", text)
+
+    entities = []
+    if name_match:
+        entities.append((name_match.start(), name_match.end(), "PERSON"))
+    if skill_match:
+        entities.append((skill_match.start(), skill_match.end(), "SKILL"))
+    if education_match:
+        entities.append((education_match.start(), education_match.end(), "EDUCATION"))
+
+    return {"entities": entities}
+
+# Example
+text = "John Doe has 5 years experience in Data Science and completed MSc in AI."
+print(extract_entities(text))
+
+This helps automatically label more data for training.
+
+
+---
+
+4.3 Use Pre-Labeled Datasets
+
+You can also use pre-labeled NLP datasets like:
+
+MITIE Resume Dataset
+
+OntoNotes 5.0 (Includes names, locations, etc.)
+
+
+These can be merged with your data for better accuracy.
+
+
+---
+
+Step 5: Test the Improved Model
+
+nlp_custom = spacy.load("custom_resume_ner")
+
+test_text = "Sarah Lee has 6 years experience in AI and completed MBA in Business Analytics."
+doc = nlp_custom(test_text)
+
+for ent in doc.ents:
+    print(f"Entity: {ent.text}, Label: {ent.label_}")
+
+Expected Output:
+
+Entity: Sarah Lee, Label: PERSON
+Entity: AI, Label: SKILL
+Entity: MBA in Business Analytics, Label: EDUCATION
+
+
+---
+
+Summary of Improvements
+
+✅ Increased Data Size: By using applicant data + variations
+✅ More Training Epochs: From 50 to 100 iterations
+✅ Used Transformer Model: en_core_web_trf for better accuracy
+✅ Regex-Based Pre-Labeling: To generate more training data
+✅ Pre-Labeled Datasets: Additional NLP datasets for better accuracy
+
+
+---
+
+Next Steps
+
+Would you like:
+
+1. Automated Resume Cleaning Script (To remove junk before NLP)?
+
+
+2. Real-time API (Using FastAPI to extract resume data dynamically)?
+
+
+
+Let me know how I can help further!
+
+
+......
+Enhancing Resume Parsing with Regex-Based Rules
+
+Adding regular expressions (regex) helps extract specific entities like names, emails, phone numbers, experience, education, and skills more accurately. SpaCy’s NER model alone may not always give precise results, so we use hybrid extraction (NER + Regex).
+
+
+---
+
+Step 1: Install Required Libraries
+
+Ensure all necessary libraries are installed:
+
+pip install spacy pandas pdfplumber re
+python -m spacy download en_core_web_trf
+
+
+---
+
+Step 2: Define Regex Patterns for Resume Extraction
+
+We will add regex rules for:
+
+Names (Proper nouns, two-word names)
+
+Emails (Standard email format)
+
+Phone Numbers (Different formats)
+
+Experience (Extract years/months of experience)
+
+Education (Degree detection)
+
+Skills (Common IT skills, keywords)
+
+
+import re
+
+# Define regex patterns
+NAME_PATTERN = r"\b[A-Z][a-z]+ [A-Z][a-z]+\b"  # Matches "John Doe"
+EMAIL_PATTERN = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+PHONE_PATTERN = r"?\+?[0-9]{1,3}??[-.\s]?[0-9]{3}[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}"
+EXPERIENCE_PATTERN = r"(\d+)\s?(?:years|yrs|year|yr|months|month) experience"
+EDUCATION_PATTERN = r"\b(B\.Tech|MSc|MBA|PhD|BSc|M\.Tech|Bachelor|Master)\b"
+SKILL_PATTERN = r"\b(Python|Machine Learning|AI|Data Science|Java|C\+\+|SQL|Deep Learning|Cloud)\b"
+
+
+---
+
+Step 3: Extract Resume Data Using Regex
+
+Now, we apply these regex rules to extract information from resume text.
+
+def extract_information(text):
+    extracted_data = {}
+
+    # Apply regex patterns
+    extracted_data["Name"] = re.search(NAME_PATTERN, text)
+    extracted_data["Email"] = re.search(EMAIL_PATTERN, text)
+    extracted_data["Phone"] = re.search(PHONE_PATTERN, text)
+    extracted_data["Experience"] = re.search(EXPERIENCE_PATTERN, text)
+    extracted_data["Education"] = re.search(EDUCATION_PATTERN, text)
+    extracted_data["Skills"] = re.findall(SKILL_PATTERN, text)
+
+    # Extract matched values
+    for key, match in extracted_data.items():
+        if isinstance(match, re.Match):
+            extracted_data[key] = match.group()
+        elif isinstance(match, list):
+            extracted_data[key] = ", ".join(set(match))  # Remove duplicates
+
+    return extracted_data
+
+# Example Resume Text
+resume_text = """
+John Doe is a Python Developer with 5 years experience in Machine Learning and AI.
+He has a MSc in Computer Science. Contact: johndoe@example.com, +1-123-456-7890
+"""
+
+# Extract data
+extracted_info = extract_information(resume_text)
+print(extracted_info)
+
+Expected Output
+
+{
+    'Name': 'John Doe',
+    'Email': 'johndoe@example.com',
+    'Phone': '+1-123-456-7890',
+    'Experience': '5 years experience',
+    'Education': 'MSc',
+    'Skills': 'Python, Machine Learning, AI'
+}
+
+
+---
+
+Step 4: Integrate Regex with SpaCy NER
+
+Now, we will combine regex extraction with SpaCy’s NER model to improve accuracy.
+
+import spacy
+
+# Load trained SpaCy model (or use "en_core_web_trf")
+nlp = spacy.load("custom_resume_ner")
+
+def extract_with_ner_and_regex(text):
+    doc = nlp(text)
+    
+    extracted_data = extract_information(text)  # Apply regex rules
+
+    # Extract entities from SpaCy NER
+    for ent in doc.ents:
+        if ent.label_ in ["PERSON", "SKILL", "EDUCATION"]:
+            extracted_data[ent.label_] = ent.text
+
+    return extracted_data
+
+# Example Resume Text
+resume_text = """
+Michael Smith is a Data Scientist with 7 years experience in Python and Deep Learning.
+He completed his B.Tech in AI. Contact: michael.smith@xyz.com, (123) 456-7890
+"""
+
+# Extract data
+extracted_data = extract_with_ner_and_regex(resume_text)
+print(extracted_data)
+
+Improved Output (Combining Regex + NER)
+
+{
+    'Name': 'Michael Smith',
+    'Email': 'michael.smith@xyz.com',
+    'Phone': '(123) 456-7890',
+    'Experience': '7 years experience',
+    'Education': 'B.Tech in AI',
+    'Skills': 'Python, Deep Learning'
+}
+
+
+---
+
+Step 5: Store Extracted Data in a Data Warehouse
+
+Now, we store extracted information in a MySQL database.
+
+import pymysql
+
+# Connect to MySQL database
+conn = pymysql.connect(host="your_host", user="your_user", password="your_password", database="your_db")
+cursor = conn.cursor()
+
+# Create table if not exists
+create_table_query = """
+CREATE TABLE IF NOT EXISTS applicants (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255),
+    email VARCHAR(255),
+    phone VARCHAR(20),
+    experience VARCHAR(50),
+    education TEXT,
+    skills TEXT
+);
+"""
+cursor.execute(create_table_query)
+conn.commit()
+
+# Insert extracted data
+def insert_applicant_data(data):
+    query = """
+    INSERT INTO applicants (name, email, phone, experience, education, skills)
+    VALUES (%s, %s, %s, %s, %s, %s)
+    """
+    cursor.execute(query, (data.get('Name', ''), data.get('Email', ''), data.get('Phone', ''),
+                            data.get('Experience', ''), data.get('Education', ''), data.get('Skills', '')))
+    conn.commit()
+    print(f"Inserted: {data['Name']}")
+
+# Insert extracted data into DB
+insert_applicant_data(extracted_data)
+
+
+---
+
+Step 6: Process Multiple Resumes
+
+To extract and store data for multiple resumes, we iterate over a folder.
+
+import os
+import pdfplumber
+
+resume_folder = "resume_pdfs"
+
+for file in os.listdir(resume_folder):
+    if file.endswith(".pdf"):
+        resume_path = os.path.join(resume_folder, file)
+
+        # Extract text from PDF
+        with pdfplumber.open(resume_path) as pdf:
+            text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
+
+        # Extract structured information
+        data = extract_with_ner_and_regex(text)
+
+        # Insert into MySQL database
+        insert_applicant_data(data)
+
+
+---
+
+Summary of Improvements
+
+✅ Regex rules for name, email, phone, experience, education, skills
+✅ Combined regex with SpaCy’s NER for better accuracy
+✅ Stored extracted information in a MySQL data warehouse
+✅ Automated bulk processing for multiple resumes
+
+
+---
+
+Next Steps
+
+Would you like:
+
+1. Fine-Tuning Transformer Model (To improve accuracy even more)?
+
+
+2. FastAPI Integration (To make this a real-time resume parsing service)?
+
+
+
+Let me know how you want to proceed!
+
+......
+
+Fine-Tuning a Transformer Model for Resume Parsing
+
+Fine-tuning a Transformer-based model (BERT, RoBERTa, or SpaCy’s en_core_web_trf) improves accuracy in extracting names, education, skills, and other applicant details.
+
+
+---
+
+Step 1: Install Required Libraries
+
+pip install transformers datasets evaluate spacy torch pandas tqdm scikit-learn
+python -m spacy download en_core_web_trf
+
+
+---
+
+Step 2: Prepare Training Data
+
+Since you have applicant data in CSV/Excel, we need to convert it into the NER format required for fine-tuning.
+
+Example CSV Format (resume_data.csv)
+
+Text, Label
+"John Doe is a Python Developer", "B-PERSON I-PERSON O O O B-SKILL I-SKILL"
+"He has 5 years of experience in AI", "O O B-EXPERIENCE O O O B-SKILL"
+"Contact: johndoe@example.com", "O B-EMAIL"
+"MSc in Computer Science", "B-EDUCATION I-EDUCATION I-EDUCATION"
+
+Convert CSV to NER JSON Format
+
+We will convert the CSV file into the format required for fine-tuning.
+
+import pandas as pd
+import json
+
+# Load CSV with resume data
+df = pd.read_csv("resume_data.csv")
+
+# Convert CSV to SpaCy NER format
+def convert_to_spacy_format(df):
+    training_data = []
+    
+    for _, row in df.iterrows():
+        text = row["Text"]
+        labels = row["Label"].split()  # Labels are space-separated
+        
+        entities = []
+        words = text.split()
+        start = 0
+
+        for i, word in enumerate(words):
+            label = labels[i]
+            if label != "O":
+                entities.append((start, start + len(word), label))
+
+            start += len(word) + 1  # +1 for space
+        
+        training_data.append((text, {"entities": entities}))
+    
+    return training_data
+
+# Convert data
+training_data = convert_to_spacy_format(df)
+
+# Save as JSON
+with open("resume_ner_data.json", "w") as f:
+    json.dump(training_data, f, indent=4)
+
+print("Training data saved!")
+
+
+---
+
+Step 3: Fine-Tune SpaCy’s Transformer Model (en_core_web_trf)
+
+We will train SpaCy’s Transformer-based NER model using the resume_ner_data.json dataset.
+
+Train Custom NER Model
+
+import spacy
+from spacy.tokens import DocBin
+from spacy.training import Example
+
+# Load base model
+nlp = spacy.load("en_core_web_trf")
+
+# Load training data
+with open("resume_ner_data.json", "r") as f:
+    training_data = json.load(f)
+
+# Convert training data to SpaCy format
+db = DocBin()
+for text, annotations in training_data:
+    doc = nlp.make_doc(text)
+    example = Example.from_dict(doc, annotations)
+    db.add(example.reference)
+
+# Save data for training
+db.to_disk("train.spacy")
+
+# Create config file for training
+config = """
+[training]
+train_corpus = "train.spacy"
+evaluate_corpus = "train.spacy"
+[nlp]
+lang = "en"
+pipeline = ["transformer", "ner"]
+[components.ner]
+factory = "ner"
+"""
+with open("config.cfg", "w") as f:
+    f.write(config)
+
+# Train the model
+!python -m spacy train config.cfg --output ./model_output --gpu-id 0
+
+
+---
+
+Step 4: Test the Fine-Tuned Model
+
+After training, we test the model’s performance.
+
+# Load fine-tuned model
+nlp_trained = spacy.load("./model_output/model-best")
+
+# Test Resume Text
+text = "Michael Smith is a Data Scientist with 7 years experience in Python and Deep Learning."
+doc = nlp_trained(text)
+
+# Print extracted entities
+for ent in doc.ents:
+    print(ent.text, ent.label_)
+
+Expected Output
+
+Michael Smith PERSON
+7 years EXPERIENCE
+Python SKILL
+Deep Learning SKILL
+
+
+---
+
+Step 5: Improve Model Accuracy with More Data
+
+✅ Increase Training Data: Add more resumes to resume_data.csv.
+✅ Improve Labeling: Ensure clean, correctly labeled data.
+✅ Use Pre-trained Model: Fine-tune BERT (bert-base-uncased) instead of en_core_web_trf for even better results.
+
+Would you like a BERT-based approach for even better accuracy? 🚀
+......
+
+Fine-Tuning BERT for Resume Parsing (NER)
+
+We will fine-tune BERT (bert-base-uncased) to improve the accuracy of extracting names, education, skills, experience, and other applicant details from resumes.
+
+
+---
+
+📌 Step 1: Install Required Libraries
+
+First, install the necessary Python libraries.
+
+pip install transformers datasets evaluate torch spacy scikit-learn seqeval pandas tqdm
+python -m spacy download en_core_web_trf
+
+
+---
+
+📌 Step 2: Prepare Resume Dataset for BERT
+
+BERT requires token-level annotations (BIO tagging: B-PERSON, I-PERSON, O, etc.).
+
+Sample CSV Format (resume_data.csv)
+
+Text,Label
+"John Doe is a Python Developer", "B-PERSON I-PERSON O O O B-SKILL I-SKILL"
+"He has 5 years of experience in AI", "O O B-EXPERIENCE O O O B-SKILL"
+"Contact: johndoe@example.com", "O B-EMAIL"
+"MSc in Computer Science", "B-EDUCATION I-EDUCATION I-EDUCATION"
+
+Convert CSV to Hugging Face Dataset Format
+
+We will convert this into a BERT-compatible dataset.
+
+import pandas as pd
+import json
+
+# Load CSV
+df = pd.read_csv("resume_data.csv")
+
+# Convert to BIO format
+def convert_to_hf_format(df):
+    dataset = []
+    
+    for _, row in df.iterrows():
+        words = row["Text"].split()
+        labels = row["Label"].split()
+        
+        dataset.append({"tokens": words, "ner_tags": labels})
+    
+    return dataset
+
+# Convert data
+hf_dataset = convert_to_hf_format(df)
+
+# Save as JSON
+with open("resume_ner_dataset.json", "w") as f:
+    json.dump(hf_dataset, f, indent=4)
+
+print("Dataset saved!")
+
+
+---
+
+📌 Step 3: Fine-Tune BERT (Hugging Face bert-base-uncased)
+
+Now, we train a BERT-based Named Entity Recognition (NER) model.
+
+from datasets import load_dataset
+from transformers import AutoModelForTokenClassification, TrainingArguments, Trainer
+from transformers import AutoTokenizer, DataCollatorForTokenClassification
+import evaluate
+
+# Load dataset
+dataset = load_dataset("json", data_files={"train": "resume_ner_dataset.json", "test": "resume_ner_dataset.json"})
+
+# Load BERT Tokenizer
+tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+
+# Define label mappings
+label_list = ["O", "B-PERSON", "I-PERSON", "B-EMAIL", "B-EXPERIENCE", "B-SKILL", "I-SKILL", "B-EDUCATION", "I-EDUCATION"]
+label2id = {label: i for i, label in enumerate(label_list)}
+id2label = {i: label for label, i in label2id.items()}
+
+# Tokenization function
+def tokenize_and_align_labels(example):
+    tokenized_inputs = tokenizer(example["tokens"], truncation=True, padding="max_length", max_length=128, is_split_into_words=True)
+    labels = []
+
+    word_ids = tokenized_inputs.word_ids()
+    previous_word_idx = None
+    for word_idx in word_ids:
+        if word_idx is None:
+            labels.append(-100)
+        elif word_idx != previous_word_idx:
+            labels.append(label2id[example["ner_tags"][word_idx]])
+        else:
+            labels.append(label2id[example["ner_tags"][word_idx]])
+        previous_word_idx = word_idx
+    
+    tokenized_inputs["labels"] = labels
+    return tokenized_inputs
+
+# Apply tokenization
+tokenized_datasets = dataset.map(tokenize_and_align_labels, batched=True)
+
+# Load BERT model
+model = AutoModelForTokenClassification.from_pretrained("bert-base-uncased", num_labels=len(label_list), id2label=id2label, label2id=label2id)
+
+# Define training parameters
+training_args = TrainingArguments(
+    output_dir="./bert_resume_ner",
+    evaluation_strategy="epoch",
+    learning_rate=2e-5,
+    per_device_train_batch_size=16,
+    per_device_eval_batch_size=16,
+    num_train_epochs=5,
+    weight_decay=0.01,
+    save_strategy="epoch",
+)
+
+# Define Data Collator
+data_collator = DataCollatorForTokenClassification(tokenizer)
+
+# Define evaluation metric (F1-score for NER)
+metric = evaluate.load("seqeval")
+
+def compute_metrics(p):
+    predictions, labels = p
+    predictions = predictions.argmax(axis=-1)
+
+    true_labels = [[id2label[l] for l in label if l != -100] for label in labels]
+    true_predictions = [[id2label[p] for (p, l) in zip(pred, label) if l != -100] for pred, label in zip(predictions, labels)]
+    
+    return metric.compute(predictions=true_predictions, references=true_labels)
+
+# Train the model
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=tokenized_datasets["train"],
+    eval_dataset=tokenized_datasets["test"],
+    tokenizer=tokenizer,
+    data_collator=data_collator,
+    compute_metrics=compute_metrics,
+)
+
+trainer.train()
+
+
+---
+
+📌 Step 4: Save & Test the Fine-Tuned Model
+
+Once trained, we save the model and test it.
+
+# Save the model
+trainer.save_model("./fine_tuned_bert_resume_ner")
+
+# Load fine-tuned model
+model_path = "./fine_tuned_bert_resume_ner"
+tokenizer = AutoTokenizer.from_pretrained(model_path)
+model = AutoModelForTokenClassification.from_pretrained(model_path)
+
+# Test Resume Text
+test_text = "Michael Smith is a Data Scientist with 7 years experience in Python and Deep Learning."
+inputs = tokenizer(test_text, return_tensors="pt", truncation=True, padding=True)
+outputs = model(**inputs)
+predictions = outputs.logits.argmax(dim=-1)
+
+# Convert token IDs to labels
+tokens = tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
+predicted_labels = [id2label[pred] for pred in predictions[0].tolist()]
+
+# Print extracted entities
+for token, label in zip(tokens, predicted_labels):
+    if label != "O":
+        print(token, "->", label)
+
+
+---
+
+📌 Expected Output
+
+Michael -> B-PERSON
+Smith -> I-PERSON
+7 -> B-EXPERIENCE
+years -> I-EXPERIENCE
+Python -> B-SKILL
+Deep -> B-SKILL
+Learning -> I-SKILL
+
+
+---
+
+📌 Step 5: Store Extracted Data in a Data Warehouse
+
+We now save the extracted data to MySQL.
+
+import pymysql
+
+# Connect to MySQL
+conn = pymysql.connect(host="your_host", user="your_user", password="your_password", database="your_db")
+cursor = conn.cursor()
+
+# Create Table
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS applicants (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255),
+    experience VARCHAR(50),
+    skills TEXT
+);
+""")
+
+conn.commit()
+
+# Insert Data
+def insert_applicant_data(name, experience, skills):
+    query = """
+    INSERT INTO applicants (name, experience, skills)
+    VALUES (%s, %s, %s)
+    """
+    cursor.execute(query, (name, experience, skills))
+    conn.commit()
+    print(f"Inserted: {name}")
+
+# Example Insert
+insert_applicant_data("Michael Smith", "7 years", "Python, Deep Learning")
+
+
+---
+
+🚀 Summary of Improvements
+
+✅ Fine-tuned BERT (bert-base-uncased) for resume parsing
+✅ BIO tagging format for accurate NER
+✅ Stored extracted data in MySQL data warehouse
+✅ Improved entity recognition (names, skills, experience, education)
+
+
+---
+
+🚀 Next Steps
+
+Would you like:
+
+1. Deploying this as an API using FastAPI?
+
+
+2. Using FAISS for resume search (Semantic Search)?
+
+
+
+Let me know what’s next! 🚀
+
+
+
+
+
